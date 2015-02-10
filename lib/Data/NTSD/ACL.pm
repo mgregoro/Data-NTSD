@@ -69,7 +69,16 @@ sub add_ace {
     my $i = 0;
     if (my $kind = $ace_obj->kind) {
         foreach my $ace (@{$self->{aces}}) {
-            if ($ace->kind eq $kind) {
+            if ($i == 0 && $ace->kind eq "GRANT" && $kind eq "DENY") {
+                # first ace is a GRANT, denies go first, add it here.
+                splice(@{$self->{aces}}, $i, 0, $ace_obj);
+                last;
+            } elsif ($i == (scalar(@{$self->{aces}}) - 1) && $ace->kind eq "DENY" && $kind eq "GRANT") {
+                # last ace is a DENY, grants go last, add it here.
+                splice(@{$self->{aces}}, $i, 0, $ace_obj);
+                last;
+            } elsif ($ace->kind eq $kind) {
+                # we can put it among those like it
                 splice(@{$self->{aces}}, $i, 0, $ace_obj);
                 last;
             }
@@ -105,6 +114,25 @@ sub remove_ace {
 
     # update the bytestream.
     $self->serialize if $removed;
+}
+
+sub has_ace {
+    my ($self, $ace) = @_;
+
+    my $ace_obj;
+    if (ref($ace) eq 'Data::NTSD::ACE') {
+        $ace_obj = $ace;
+    } elsif (ref($ace) eq "HASH") {
+        $ace_obj = Data::NTSD::ACE->create($ace);
+    }
+
+    foreach my $ace (@{$self->{aces}}) {
+        if ($ace_obj->bytestream eq $ace->bytestream) {
+            return 1;
+        }
+    }
+
+    return undef;
 }
 
 sub revision {

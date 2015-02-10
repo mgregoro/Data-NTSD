@@ -34,12 +34,12 @@ sub parse_uuid {
             unpack('I<', $chunks->[0]),
             unpack('S<', $chunks->[1]),
             unpack('S<', $chunks->[2]),
-            unpack('Q<', $chunks->[3] . $chunks->[4]),
+            unpack('Q', $chunks->[3] . $chunks->[4]),
         ],
         string => join('-',
-            join('', map { sprintf("%02x", ord($_)) } split(//, $chunks->[0])),
-            join('', map { sprintf("%02x", ord($_)) } split(//, $chunks->[1])),
-            join('', map { sprintf("%02x", ord($_)) } split(//, $chunks->[2])),
+            join('', map { sprintf("%02x", ord($_)) } split(//, reverse($chunks->[0]))),
+            join('', map { sprintf("%02x", ord($_)) } split(//, reverse($chunks->[1]))),
+            join('', map { sprintf("%02x", ord($_)) } split(//, reverse($chunks->[2]))),
             join('', map { sprintf("%02x", ord($_)) } split(//, $chunks->[3])),
             join('', map { sprintf("%02x", ord($_)) } split(//, $chunks->[4])),   
         ),
@@ -52,9 +52,19 @@ sub uuid_string_to_bytes {
 
     $uuid = $self unless ref $self;
 
+    # convert to GUID order
+    my @segments = split(/-/, $uuid);
+    for (0..2) {
+        my $segment;
+        while ($segments[$_] =~ /([0-9a-fA-F]{2})/g) {
+            $segment = $1 . $segment;
+        }
+        $segments[$_] = $segment;
+    }
+
     return Data::NTSD::ByteStream->new(
         pack('H2' x 16, 
-            map { ($_ =~ /([0-9a-fA-F]{2})/g) } split(/-/, $uuid)
+            map { ($_ =~ /([0-9a-fA-F]{2})/g) } join('', @segments)
         )
     );
 }
